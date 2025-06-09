@@ -83,7 +83,7 @@ function draw_animation_once (frames) {
 
 // Loop animation
 function draw_animation_loop (frames) {
-    while (true) {
+    while (!Plymouth.QuitRequested()) {
         for (i = 0; i < Length(frames); i++) {
             frame = frames[i];
             frame.SetX((Window.GetWidth() - frame_width) / 2);
