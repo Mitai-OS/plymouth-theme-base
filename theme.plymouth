@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Theme Template
+Description=Theme template for easy implementation of custom boot animation
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/my-theme/images
+ScriptFile=/usr/share/plymouth/themes/my-theme/script.script
