@@ -1,4 +1,6 @@
-// Variables
+Analise esse template de tema do plymouth
+
+// Variables defined externally via template engine
 tile_width = ${tile_width};
 tile_height = ${tile_height};
 frame_width = ${frame_width};
@@ -9,50 +11,67 @@ frame_delay = ${animation_delay};
 
 image_dir = PLYMOUTH_THEME_PATH + "/images";
 
-// Listas de animações
+// Animation arrays
 startup_frames = [];
 loop_frames = [];
 
-// Carrega imagens de animações
-for (i = 0; i < startup_frame_count; i++) {
-    frame = image_dir + "/startup_frame_" + i + ".png";
-    startup_frames[i] = Image(frame);
-}
-for (i = 0; i < loop_frame_count; i++) {
-    frame = image_dir + "/loop_frame_" + i + ".png";
-    loop_frames[i] = Image(frame);
+screen_width = Window.GetWidth();
+screen_height = Window.GetHeight();
+
+// Safe function to load images
+function safe_image(path) {
+    img = Image(path);
+    if (!img) {
+        Plymouth.Debug("Image not loaded: " + path);
+    }
+    return img;
 }
 
-// Carrega tiles
+// Loads frames of the start animation
+for (i = 0; i < startup_frame_count; i++) {
+    frame_path = image_dir + "/startup_frame_" + i + ".png";
+    startup_frames[i] = safe_image(frame_path);
+}
+
+// Loads frames of the looped animation
+for (i = 0; i < loop_frame_count; i++) {
+    frame_path = image_dir + "/loop_frame_" + i + ".png";
+    loop_frames[i] = safe_image(frame_path);
+}
+
+// Loads alternating background tiles
 tiles = {};
 for (x = 0; x <= 1; x++) {
     for (y = 0; y <= 1; y++) {
-        tiles[x + "-" + y] = Image(image_dir + "/tile_" + x + "-" + y + ".png");
+        tile_key = x + "-" + y;
+        tile_path = image_dir + "/tile_" + tile_key + ".png";
+        tiles[tile_key] = safe_image(tile_path);
     }
 }
 
-// Função para desenhar o fundo com camadas
+// Draw the background with layers: stretched, centered and tiled
 function draw_background () {
-    screen_width = Window.GetWidth();
-    screen_height = Window.GetHeight();
+    // Layer 1: Stretched Background (Full Fill)
+    bg_image_stretch = safe_image(image_dir + "/background_strech.png");
+    if (bg_image_stretch) {
+        bg_image_stretch.SetX(0);
+        bg_image_stretch.SetY(0);
+        bg_image_stretch.SetScale(
+            screen_width / bg_image_stretch.GetWidth(),
+            screen_height / bg_image_stretch.GetHeight()
+        );
+        bg_image_stretch.Show();
+    }
 
-    // Stretched Background
-    bg_image_stretch = Image(image_dir + "/background_strech.png");
-    bg_image_stretch.SetX(0);
-    bg_image_stretch.SetY(0);
-    bg_image_stretch.SetScale(
-        screen_width / bg_image_stretch.GetWidth(),
-        screen_height / bg_image_stretch.GetHeight()
-    );
-    bg_image_stretch.Show();
+    // Layer 2: Centered background (logo or highlight)
+    bg_image_center = safe_image(image_dir + "/background_.png");
+    if (bg_image_center) {
+        bg_image_center.SetX((screen_width - bg_image_center.GetWidth()) / 2);
+        bg_image_center.SetY((screen_height - bg_image_center.GetHeight()) / 2);
+        bg_image_center.Show();
+    }
 
-    // Center Background
-    bg_image_center = Image(image_dir + "/background_.png");
-    bg_image_center.SetX((screen_width - bg_image_center.GetWidth()) / 2);
-    bg_image_center.SetY((screen_height - bg_image_center.GetHeight()) / 2);
-    bg_image_center.Show();
-
-    // Tiled background
+    // Layer 3: Tiled background
     rows = (screen_height + tile_height - 1) / tile_height;
     cols = (screen_width + tile_width - 1) / tile_width;
 
@@ -62,35 +81,44 @@ function draw_background () {
             y_index = row % 2;
             tile_key = x_index + "-" + y_index;
             img = tiles[tile_key];
-            img.SetX(col * tile_width);
-            img.SetY(row * tile_height);
-            img.Show();
+            if (img) {
+                img.SetX(col * tile_width);
+                img.SetY(row * tile_height);
+                img.Show();
+            }
         }
     }
 }
 
-// Enter animation
+// Animation displayed only once (entrance)
 function draw_animation_once (frames) {
     for (i = 0; i < Length(frames); i++) {
         frame = frames[i];
-        frame.SetX((Window.GetWidth() - frame_width) / 2);
-        frame.SetY((Window.GetHeight() - frame_height) / 2);
-        frame.Show();
-        Plymouth.Sleep(frame_delay);
-        frame.Hide();
-    }
-}
-
-// Loop animation
-function draw_animation_loop (frames) {
-    while (!Plymouth.QuitRequested()) {
-        for (i = 0; i < Length(frames); i++) {
-            frame = frames[i];
-            frame.SetX((Window.GetWidth() - frame_width) / 2);
-            frame.SetY((Window.GetHeight() - frame_height) / 2);
+        if (frame) {
+            frame.SetX((screen_width - frame_width) / 2);
+            frame.SetY((screen_height - frame_height) / 2);
             frame.Show();
             Plymouth.Sleep(frame_delay);
             frame.Hide();
+            frame = null;
+        }
+    }
+}
+
+// Continuous animation until the system finishes booting
+function draw_animation_loop (frames) {
+    use_frames = Length(frames) > 0 ? frames : [safe_image(image_dir + "/loop_fallback.png")];
+
+    while (!Plymouth.QuitRequested()) {
+        for (i = 0; i < Length(use_frames); i++) {
+            frame = use_frames[i];
+            if (frame) {
+                frame.SetX((screen_width - frame_width) / 2);
+                frame.SetY((screen_height - frame_height) / 2);
+                frame.Show();
+                Plymouth.Sleep(frame_delay);
+                frame.Hide();
+            }
         }
     }
 }
