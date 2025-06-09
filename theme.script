@@ -1,4 +1,4 @@
-// Variáveis configuráveis
+// Variables
 tile_width = ${tile_width};
 tile_height = ${tile_height};
 frame_width = ${frame_width};
